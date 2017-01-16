@@ -1,9 +1,9 @@
 <!doctype html> 
 <html lang="en">
 <head> 
-	<meta charset="UTF-8" />
-	<title>Phaser - Making your first game, part 1</title>
-	<script type="text/javascript" src="js/phaser.min.js"></script>
+    <meta charset="UTF-8" />
+    <title>Phaser - Making your first game, part 1</title>
+    <script type="text/javascript" src="js/phaser.min.js"></script>
     <style type="text/css">
         body {
             margin: 0;
@@ -30,7 +30,7 @@ function preload() {
 
     // ToAdd
     game.load.image('turret', 'assets/plane.png');
-    game.load.image('tank1', 'assets/plane.png');
+    game.load.image('enemy', 'assets/firstaid.png')
     game.load.image('shadow', 'assets/plane.png');
     game.load.image('plane', 'assets/plane.png');
     game.load.image('plane', 'assets/plane.png');
@@ -48,8 +48,8 @@ var player;              // instance
 var cursors;             // freaking cursors
 
 var enemies;
-var enemiesTotal;
-var enemiesAlive;
+var enemiesTotal = 0;
+var enemiesAlive = 0;
 
 
 
@@ -100,12 +100,12 @@ function create() {
 
     /* ++++++++++++++++++++++++ ENEMIES +++++++++++++++++++++++*/
     
-    tank = game.add.sprite(0, 0, 'tank', 'tank1');
-    tank.anchor.setTo(0.5, 0.5);
-    game.physics.enable(tank, Phaser.Physics.ARCADE);
-    tank.body.drag.set(0.2);
-    tank.body.maxVelocity.setTo(400, 400);
-    tank.body.collideWorldBounds = true;
+    //tank = game.add.sprite(0, 0, 'tank', 'tank1');
+    //tank.anchor.setTo(0.5, 0.5);
+    //game.physics.enable(tank, Phaser.Physics.ARCADE);
+    //tank.body.drag.set(0.2);
+    //tank.body.maxVelocity.setTo(400, 400);
+    //tank.body.collideWorldBounds = true;
     
     enemies = [];
     enemiesTotal = 20;
@@ -126,7 +126,7 @@ function create() {
     
     for (var i = 0; i < enemiesTotal; i++)
     {
-        enemies.push(new EnemyTank(i, game, tank, enemyBullets));
+        enemies.push(new EnemyTank(i, game, player, enemyBullets));
     }
     
 
@@ -200,8 +200,28 @@ function update() {
     //  Collide the player and the stars with the platforms
     game.physics.arcade.collide(player, platforms);
     game.physics.arcade.collide(stars, platforms);
+
     game.physics.arcade.overlap(player, stars, collectStar, null, this);
-    game.physics.arcade.overlap(enemyBullets, tank, bulletHitPlayer, null, this);
+    game.physics.arcade.overlap(enemyBullets, player, bulletHitPlayer, null, this);
+
+    enemiesAlive = 0;
+
+    
+    for (var i = 0; i < enemies.length; i++)
+    {
+        if (enemies[i].alive)
+        {
+            enemiesAlive++;
+            game.physics.arcade.collide(player, enemies[i].tank);
+            game.physics.arcade.collide(platforms, enemies[i].tank);
+
+
+            //game.physics.arcade.overlap(bullets, enemies[i].tank, bulletHitEnemy, null, this);
+            //enemies[i].update();
+        }
+    }
+    
+
 
     /*+++++++++++++ PLAYER IDLE +++++++++++++*/
 
