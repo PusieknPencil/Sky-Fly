@@ -20,8 +20,8 @@ function preload() {
 
     /* +++++++++++++++++++++++ Level ++++++++++++++++++++++*/
 
-    game.load.image('sky', 'assets/sky.png');	// <- dis gn b a background panorama
-    game.load.image('ground', 'assets/platform.png');	// <- sandbox ground, like in freakin terraria
+    game.load.image('sky', 'assets/sky.png');   // <- dis gn b a background panorama
+    game.load.image('ground', 'assets/platform.png');   // <- sandbox ground, like in freakin terraria
     game.load.image('birch', 'assets/birch.png');
 
     /* +++++++++++++++++++++++ Player ++++++++++++++++++++++*/
@@ -106,7 +106,7 @@ function create() {
     // Create ground
     //var ground = game.add.tileSprite(0, game.world.height - 64, 800, 600, 'earth');
     var ground = platforms.create(0, game.world.height - 64, 'ground');
-    ground.scale.setTo(100, 2);
+    ground.scale.setTo(50, 2);
     ground.body.immovable = true;
 
 
@@ -132,9 +132,17 @@ function create() {
     enemyBullets.setAll('outOfBoundsKill', true);
     enemyBullets.setAll('checkWorldBounds', true);
     
+    var is_immovable = true;
+    var innacuracy = 199;
+    var fireRange = 1000; // ~1000
+    var bulletSpeed = 800;  // 500 - 1000
+    var fireRate = 1000; // The more, the slower ~1000 normal
+    var AI_level = 1;
+
+
     for (var i = 0; i < enemiesTotal; i++)
     {
-        enemies.push(new EnemyTank(i, game, player, enemyBullets));
+        enemies.push(new EnemyTank(i, game, player, enemyBullets, is_immovable, innacuracy, fireRange, bulletSpeed, fireRate, AI_level));
     }
 
     /* ++++++++++++++++++++++++ SPRITES +++++++++++++++++++++++*/
@@ -184,7 +192,7 @@ function create() {
 
 function update() {
 
-	collideRules(player, platforms, stars, enemyBullets);
+    collideRules(player, platforms, stars, enemyBullets);
     player_1.update();
 
     enemiesAlive = 0;
@@ -201,14 +209,14 @@ function update() {
             enemies[i].update();
         }
     }
-   	
+    
     prevCamX = game.camera.x;
 
 }
 
 function collideRules (player, platforms, stars, enemyBullets) {
 
-	game.physics.arcade.collide(player, platforms);
+    game.physics.arcade.collide(player, platforms);
     game.physics.arcade.collide(stars, platforms);
     game.physics.arcade.overlap(player, stars, collectStar, null, this);
     game.physics.arcade.overlap(enemyBullets, player, bulletHitPlayer, null, this);
@@ -239,7 +247,7 @@ Helicopter = function (cursors, game) {
     this.heli.anchor.setTo(0.5, 0.5);
 
     this.game.physics.arcade.enable(this.heli);
-    //game.physics.enable(tank, Phaser.Physics.ARCADE);
+    //game.physics.enable(this.heli, Phaser.Physics.ARCADE);
 
     //  Player physics properties.
     this.heli.body.bounce.y = 0.0;
@@ -247,11 +255,6 @@ Helicopter = function (cursors, game) {
     this.heli.body.collideWorldBounds = true;
 
     this.heli.body.drag.set(0.2);
-    // heli.body.maxVelocity.setTo(400, 400);
-
-    //  Our two animations, walking left and right.
-    //  heli.animations.add('left', [0, 1, 2, 3], 10, true);
-    //  heli.animations.add('right', [5, 6, 7, 8], 10, true);
 
 }
 
@@ -263,6 +266,10 @@ Helicopter.prototype.update = function () {
     var maxSpeed = 600;
     var backwardAcceleration = -5;
     var forwardAcceleration = 10;
+
+    this.speed = this.heli.body.velocity.x;
+    speedText.text = 'Speed: ' + this.speed.toFixed(2);
+    this.heli.angle = this.heli.body.velocity.x / 15;
 
      //+++++++++++++ PLAYER IDLE +++++++++++++
 
@@ -337,30 +344,33 @@ Helicopter.prototype.update = function () {
         this.heli.body.velocity.y += 6;
     }
 
-
-    this.speed = this.heli.body.velocity.x;
-    speedText.text = 'Speed: ' + this.speed.toFixed(2);
-    this.heli.angle = this.heli.body.velocity.x / 15;
-
 }
 
 
-EnemyTank = function (index, game, player, bullets) {
+EnemyTank = function (index, game, player, bullets, isImmovable, innacuracy, fireRange, bulletSpeed, fireRate, AI_level) {
 
     var x = game.world.randomX;
     var y = 500;
+
 
     this.game = game;
     //this.health = 3;
     this.player = player;
     this.bullets = bullets;
-    this.fireRate = 1000;
+
+    this.isImmovable = isImmovable;
+    this.innacuracy = innacuracy;
+    this.fireRange = fireRange;
+    this.bulletSpeed = bulletSpeed;
+    this.fireRate = fireRate;
+    this.AI_level = AI_level;
+
     this.nextFire = 0;
     this.alive = true;
 
     // this.shadow = game.add.sprite(x, y, 'enemy', 'shadow');
-    this.tank = game.add.sprite(x, y, 'truck', 'tank2');
-    this.turret = game.add.sprite(x, y, 'truck', 'turret');
+    this.tank = game.add.sprite(x, y, 'truck', 'Corpse');
+    this.turret = game.add.sprite(x, y, 'truck', 'rocketLauncher');
 
     // this.shadow.anchor.set(0.5);
     this.tank.anchor.set(0.5);
@@ -375,7 +385,12 @@ EnemyTank = function (index, game, player, bullets) {
 
     //this.tank.angle = game.rnd.angle();
 
-    game.physics.arcade.velocityFromRotation(this.tank.rotation, 100, this.tank.body.velocity);
+    if (this.isImmovable == false) {
+
+        game.physics.arcade.velocityFromRotation(this.tank.rotation, 100, this.tank.body.velocity);
+    
+    } 
+
 
 };
 
@@ -412,7 +427,7 @@ EnemyTank.prototype.update = function() {
     this.turret.y = this.tank.y;
     this.turret.rotation = this.game.physics.arcade.angleBetween(this.tank, this.player);
     
-    if (this.game.physics.arcade.distanceBetween(this.tank, this.player) < 1000)
+    if (this.game.physics.arcade.distanceBetween(this.tank, this.player) < this.fireRange)
     {        
         
         if (this.game.time.now > this.nextFire && this.bullets.countDead() > 0)
@@ -424,7 +439,7 @@ EnemyTank.prototype.update = function() {
 
             bullet.reset(this.turret.x, this.turret.y);
 
-            bullet.rotation = this.game.physics.arcade.moveToObject(bullet, this.player, 500);
+            bullet.rotation = this.game.physics.arcade.moveToObject(bullet, this.player, this.bulletSpeed);
             
         }
         
@@ -438,7 +453,7 @@ function bulletHitPlayer (tank, bullet) {
 
     bullet.kill();
     hitsTaken += 1;
-   	hitText.text = 'Hits taken: ' + hitsTaken;
+    hitText.text = 'Hits taken: ' + hitsTaken;
 
 }
 
