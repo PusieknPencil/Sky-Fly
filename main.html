@@ -2,7 +2,7 @@
 <html lang="en">
 <head> 
     <meta charset="UTF-8" />
-    <title>Phaser - Making your first game, part 1</title>
+    <title>Phaser - making osom bitchass game</title>
     <script type="text/javascript" src="js/phaser.min.js"></script>
     <style type="text/css">
         body {
@@ -18,21 +18,29 @@ var game = new Phaser.Game(1024, 768, Phaser.AUTO, '', { preload: preload, creat
 
 function preload() {
 
+    /* +++++++++++++++++++++++ Level ++++++++++++++++++++++*/
+
     game.load.image('sky', 'assets/sky.png');	// <- dis gn b a background panorama
     game.load.image('ground', 'assets/platform.png');	// <- sandbox ground, like in freakin terraria
-    game.load.image('star', 'assets/star.png');			// <- who cares about the stars
-    game.load.spritesheet('dude', 'assets/dude.png', 32, 48);	// <- replace with player
-    game.load.image('earth, assets/earth.png');
-
-    // Troll
-    game.load.image('helicopter', 'assets/helicopter.png');   // player
     game.load.image('birch', 'assets/birch.png');
 
-    // ToAdd
-    game.load.image('turret', 'assets/plane.png');		// rocket missle launcher
-    game.load.image('enemy', 'assets/firstaid.png')		// trucks
-    game.load.image('shadow', 'assets/plane.png');		// do we need shadow? I think nope
-    game.load.image('bullet', 'assets/star.png')		// bullets, also spritesheet with diff kinds
+    /* +++++++++++++++++++++++ Player ++++++++++++++++++++++*/
+
+    game.load.image('helicopter', 'assets/helicopter.png');   // player
+    //game.load.atlas('helicopter', 'assets/helicopter.png', 'assets/helicoter.json')
+
+    //game.load.atlas('fuelMeter', 'assets/fuelMeter.png', 'assets/fuelMeter.json')
+    //game.load.atlas('speedMeter', 'assets/speedMeter.png', 'assets/speedMeter.json')
+    //game.load.atlas('dmgMeter', 'assets/dmgMeter.png', 'assets/dmgMeter.json')
+
+    /* +++++++++++++++++++++++ Enemies ++++++++++++++++++++++*/
+
+    game.load.atlas('truck', 'assets/truck.png', 'assets/truck.json'); //enemy truck
+    game.load.image('bullet', 'assets/star.png');      // bullets, also spritesheet with diff kinds
+
+    /* +++++++++++++++++++++++ Bonus ++++++++++++++++++++++*/    
+    
+    game.load.image('star', 'assets/star.png');         // <- who cares about the stars
 
 }
 
@@ -40,31 +48,34 @@ var background;          // group
 var platforms;           // group
 var stars;               // group
 var player;              // instance
+var player_1;            // player
+
 var cursors;             // freakin cursors
 
-var enemies;
-var enemiesTotal = 0;
-var enemiesAlive = 0;
+var enemies;             // group
+var enemiesTotal = 0;    // variable
+var enemiesAlive = 0;    // variable
 
-var bullets;
-var fireRate = 100;
-var nextFire = 0;
+var bullets;             // group
+var fireRate = 100;      // variable
+var nextFire = 0;        // variable
 
+var score = 0;           // variable
+var scoreText;           // text
 
-var score = 0;
-var scoreText;
+var speed = 0;           // variable
+var speedText;           // text
 
-var speed = 0;
-var speedText;
-
-var hitsTaken = 0;
-var hitText;
+var hitsTaken = 0;       // variable
+var hitText;             // text
 
 function create() {
 
     /* +++++++++++++++++++++++ Game params ++++++++++++++++++++++*/
+    
     game.physics.startSystem(Phaser.Physics.ARCADE); // arcade
     game.world.setBounds(0, 0, 1024*10, 768);
+    cursors = game.input.keyboard.createCursorKeys();
 
     /* +++++++++++++++++++++++ BACKGROUND ++++++++++++++++++++++*/
 
@@ -81,7 +92,6 @@ function create() {
 
     /* +++++++++++++++++++++++ POINTS COUNT ++++++++++++++++++++++*/
 
-    cursors = game.input.keyboard.createCursorKeys();
     scoreText = game.add.text(16, 16, 'Score: 0', { fontSize: '32px', fill: '#000' });
     speedText = game.add.text(16, 52, 'Speed: 0', { fontSize: '32px', fill: '#000' });
     hitText = game.add.text(16, 88, 'Hits taken: 0', { fontSize: '32px', fill: '#000' });
@@ -102,27 +112,8 @@ function create() {
 
     /* ++++++++++++++++++++++++ PLAYER +++++++++++++++++++++++*/
 
-    // Creating player
-    player = game.add.sprite(0, game.world.height - 200, 'helicopter');
-    //player = game.add.sprite(0, 0, 'player', 'player1');
-    player.scale.setTo(0.05, 0.05);
-    player.anchor.setTo(0.5, 0.5);
-
-    game.physics.arcade.enable(player);
-    //game.physics.enable(tank, Phaser.Physics.ARCADE);
-
-    //  Player physics properties.
-    player.body.bounce.y = 0.0;
-    player.body.gravity.y = 80;
-    player.body.collideWorldBounds = true;
-
-    player.body.drag.set(0.2);
-    //player.body.maxVelocity.setTo(400, 400);
-
-    //  Our two animations, walking left and right.
-    //  player.animations.add('left', [0, 1, 2, 3], 10, true);
-    //  player.animations.add('right', [5, 6, 7, 8], 10, true);
-
+    player_1 = new Helicopter(cursors, game);   // Create an object we can steer
+    player = player_1.heli;                     // Create the player instance for other functions argument
 
     /* ++++++++++++++++++++++++ ENEMIES +++++++++++++++++++++++*/
     
@@ -147,10 +138,6 @@ function create() {
     }
 
     /* ++++++++++++++++++++++++ SPRITES +++++++++++++++++++++++*/
-
-    // debug.text = num_obstackles;
-    // debug.text = i;
-
 
     // Create birches to crash
     var birch_array = [
@@ -185,6 +172,7 @@ function create() {
 
 
     /* ++++++++++++++++++++++++ CAMERA SETTINGS +++++++++++++++++++++++*/
+
     game.camera.follow(player, Phaser.Camera.FOLLOW_LOCKON, 0.1);
     sky.fixedToCamera = true;
     scoreText.fixedToCamera = true;
@@ -192,18 +180,14 @@ function create() {
     hitText.fixedToCamera = true;
 
     prevCamX = game.camera.x;
-
 }
 
 function update() {
 
-	collideRules(player, platforms, stars, enemyBullets)
-
-    playerSpeedUpdate(player);
-    playerMovementHandler(player);
+	collideRules(player, platforms, stars, enemyBullets);
+    player_1.update();
 
     enemiesAlive = 0;
-
     
     for (var i = 0; i < enemies.length; i++)
     {
@@ -231,79 +215,135 @@ function collideRules (player, platforms, stars, enemyBullets) {
 
 }
 
-function playerMovementHandler (player) {
-
-	 /*+++++++++++++ PLAYER IDLE +++++++++++++*/
-
-    if (player.body.velocity.x < 0 && !cursors.left.isDown && !cursors.right.isDown)
-    {
-        player.body.velocity.x -= (player.body.velocity.x / 30);
-    }
-    else if (player.body.velocity.x > 0 && !cursors.left.isDown && !cursors.right.isDown)
-    {
-        player.body.velocity.x -= (player.body.velocity.x / 30);;
-    }
-
-    /*+++++++++++++ LEFT AND RIGHT MOVEMENT OF PLAYER +++++++++++++*/
-
-    if (cursors.left.isDown)
-    {
-        player.body.velocity.x += -5;
-        player.animations.play('left');
-
-        if (player.body.velocity.x <= -300)
-        {
-            player.body.velocity.x = -300;
-        }
-    }
-
-    else if (cursors.right.isDown)
-    {
-        player.body.velocity.x += 10;
-        player.animations.play('right');
-
-        if (player.body.velocity.x >= 600)
-        {
-            player.body.velocity.x = 600;
-        }
-    }
-    else
-    {
-        player.animations.stop();
-        player.frame = 4;
-    }
-    
-    /*+++++++++++++ UP AND DOWN MOVEMENT OF PLAYER +++++++++++++*/
-
-    if (cursors.up.isDown) //&& player.body.touching.down)
-    {
-        player.body.velocity.y += -6;
-    }
-
-    else if (cursors.down.isDown) //&& player.body.touching.down)
-    {
-        player.body.velocity.y += 3;
-    }
-
-}
-
-function playerSpeedUpdate (player) {
-
-	speed = player.body.velocity.x;
-	speedText.text = 'Speed: ' + speed.toFixed(2);
-
-}
-
 function collectStar (player, star) {
     
-    // Removes the star from the screen
     star.kill();
-
-    //  Add and update the score
     score += 10;
     scoreText.text = 'Score: ' + score;
 
 }
+
+Helicopter = function (cursors, game) {
+
+    this.cursors = cursors;
+    this.game = game;
+    this.heli = game.add.sprite(0, game.world.height - 200, 'helicopter');
+    
+    //heli = game.add.sprite(0, 0, 'player', 'player1');
+    //this.tank = game.add.sprite(x, y, 'truck', 'tank2');
+    //this.turret = game.add.sprite(x, y, 'truck', 'turret');
+    //this.tank.anchor.set(0.5);
+    //this.turret.anchor.set(0.3, 0.5);
+
+    this.heli.scale.setTo(0.05, 0.05);
+    this.heli.anchor.setTo(0.5, 0.5);
+
+    this.game.physics.arcade.enable(this.heli);
+    //game.physics.enable(tank, Phaser.Physics.ARCADE);
+
+    //  Player physics properties.
+    this.heli.body.bounce.y = 0.0;
+    this.heli.body.gravity.y = 80;
+    this.heli.body.collideWorldBounds = true;
+
+    this.heli.body.drag.set(0.2);
+    // heli.body.maxVelocity.setTo(400, 400);
+
+    //  Our two animations, walking left and right.
+    //  heli.animations.add('left', [0, 1, 2, 3], 10, true);
+    //  heli.animations.add('right', [5, 6, 7, 8], 10, true);
+
+}
+
+Helicopter.prototype.update = function () {
+
+    // ADVANCED PHISICS ENGINE XD
+    var friction = this.heli.body.velocity.x / 400;
+    var minSpeed = -300;
+    var maxSpeed = 600;
+    var backwardAcceleration = -5;
+    var forwardAcceleration = 10;
+
+     //+++++++++++++ PLAYER IDLE +++++++++++++
+
+    if (this.heli.body.velocity.x < 0 && !this.cursors.left.isDown && !this.cursors.right.isDown)
+    {
+        this.heli.body.velocity.x -= friction;
+    }
+    else if (this.heli.body.velocity.x > 0 && !this.cursors.left.isDown && !this.cursors.right.isDown)
+    {
+        this.heli.body.velocity.x -= friction;
+    }
+
+    //+++++++++++++ LEFT AND RIGHT MOVEMENT OF PLAYER +++++++++++++
+
+    if (this.cursors.left.isDown)
+    {
+        if (this.heli.body.velocity.x > 0) 
+        {
+            this.heli.body.velocity.x += backwardAcceleration - friction;
+        }
+
+        else if (this.heli.body.velocity.x == 0) 
+        {
+            this.heli.body.velocity.x += -5;
+        }
+
+        else if (this.heli.body.velocity.x < 0) 
+        {
+            this.heli.body.velocity.x += backwardAcceleration + friction;
+        }
+
+        if (this.heli.body.velocity.x <= minSpeed)
+        {
+            this.heli.body.velocity.x = minSpeed;
+        }
+
+        //heli.animations.play('left');
+    }
+
+    else if (this.cursors.right.isDown)
+    {
+        if (this.heli.body.velocity.x < 0) 
+        {
+            this.heli.body.velocity.x += forwardAcceleration + friction;
+        }
+
+        else if (this.heli.body.velocity.x == 0) 
+        {
+            this.heli.body.velocity.x += forwardAcceleration;
+        }
+
+        else if (this.heli.body.velocity.x > 0) 
+        {
+            this.heli.body.velocity.x += forwardAcceleration - friction;
+        }
+
+        if (this.heli.body.velocity.x >= maxSpeed)
+        {
+            this.heli.body.velocity.x = maxSpeed;
+        }
+    }
+
+    //+++++++++++++ UP AND DOWN MOVEMENT OF PLAYER +++++++++++++
+
+    if (this.cursors.up.isDown) //&& heli.body.touching.down)
+    {
+        this.heli.body.velocity.y += -6;
+    }
+
+    else if (this.cursors.down.isDown) //&& heli.body.touching.down)
+    {
+        this.heli.body.velocity.y += 6;
+    }
+
+
+    this.speed = this.heli.body.velocity.x;
+    speedText.text = 'Speed: ' + this.speed.toFixed(2);
+    this.heli.angle = this.heli.body.velocity.x / 15;
+
+}
+
 
 EnemyTank = function (index, game, player, bullets) {
 
@@ -319,12 +359,12 @@ EnemyTank = function (index, game, player, bullets) {
     this.alive = true;
 
     // this.shadow = game.add.sprite(x, y, 'enemy', 'shadow');
-    this.tank = game.add.sprite(x, y, 'enemy', 'tank1');
-    // this.turret = game.add.sprite(x, y, 'enemy', 'turret');
+    this.tank = game.add.sprite(x, y, 'truck', 'tank2');
+    this.turret = game.add.sprite(x, y, 'truck', 'turret');
 
     // this.shadow.anchor.set(0.5);
     this.tank.anchor.set(0.5);
-    // this.turret.anchor.set(0.3, 0.5);
+    this.turret.anchor.set(0.3, 0.5);
 
     this.tank.name = index.toString();
     game.physics.enable(this.tank, Phaser.Physics.ARCADE);
@@ -333,7 +373,7 @@ EnemyTank = function (index, game, player, bullets) {
     this.tank.body.bounce.setTo(0, 0);
     this.tank.body.gravity.y = 80;
 
-    this.tank.angle = game.rnd.angle();
+    //this.tank.angle = game.rnd.angle();
 
     game.physics.arcade.velocityFromRotation(this.tank.rotation, 100, this.tank.body.velocity);
 
@@ -368,15 +408,12 @@ EnemyTank.prototype.update = function() {
     //this.shadow.rotation = this.tank.rotation;
 
     
-    //this.turret.x = this.tank.x;
-    //this.turret.y = this.tank.y;
-    //this.turret.rotation = this.game.physics.arcade.angleBetween(this.tank, this.player);
-
-    
+    this.turret.x = this.tank.x;
+    this.turret.y = this.tank.y;
+    this.turret.rotation = this.game.physics.arcade.angleBetween(this.tank, this.player);
     
     if (this.game.physics.arcade.distanceBetween(this.tank, this.player) < 1000)
-    {
-        
+    {        
         
         if (this.game.time.now > this.nextFire && this.bullets.countDead() > 0)
         {
@@ -385,8 +422,7 @@ EnemyTank.prototype.update = function() {
 
             var bullet = this.bullets.getFirstDead();
 
-            //bullet.reset(this.turret.x, this.turret.y);
-            bullet.reset(this.tank.x, this.tank.y);
+            bullet.reset(this.turret.x, this.turret.y);
 
             bullet.rotation = this.game.physics.arcade.moveToObject(bullet, this.player, 500);
             
@@ -464,7 +500,7 @@ function render () {
 // Sandbox ground <- Pusiek*
 
 // Low priority:
-// inteligent AI
+// inteligent AI , different enemies
 // Game models <- Pusiek
 // multiple heli class
 
