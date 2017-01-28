@@ -78,6 +78,7 @@ function create() {
     game.physics.startSystem(Phaser.Physics.P2JS);
     game.physics.p2.gravity.y = 120;
     game.physics.p2.defaultRestitution = 0.8;
+    game.physics.p2.setImpactEvents(true);
 
 
     game.world.setBounds(0, 0, 1024*10, 768);
@@ -95,7 +96,7 @@ function create() {
     scoreText = game.add.text(16, 16, 'Score: 0', { fontSize: '32px', fill: '#000' });
     speedText = game.add.text(16, 52, 'Speed: 0', { fontSize: '32px', fill: '#000' });
     hitText = game.add.text(16, 88, 'Hits taken: 0', { fontSize: '32px', fill: '#000' });
-    debug = game.add.text(500, 16, 'Actual debugging output', { fontSize: '32px', fill: '#000' });
+    debugText = game.add.text(500, 16, 'Actual debugging output', { fontSize: '32px', fill: '#000' });
 
     // ++++++++++++++++++++++++ GROUND +++++++++++++++++++++++
 
@@ -124,7 +125,7 @@ function create() {
     //  The enemies bullet group
     enemyBullets = game.add.group();
     enemyBullets.enableBody = true;
-    enemyBullets.physicsBodyType = Phaser.Physics.arcade;
+    enemyBullets.physicsBodyType = Phaser.Physics.ARCADE;
     enemyBullets.createMultiple(100, 'bullet');
     
     enemyBullets.setAll('anchor.x', 0.5);
@@ -213,25 +214,52 @@ function update() {
         }
     }
     
-
     prevCamX = game.camera.x;
 
 }
 
-function collideRules (player, platforms, stars, enemyBullets) {
+function collideRules (player, platforms, star, bullet) {
 
     //game.physics.arcade.collide(player, platforms);
-    game.physics.arcade.collide(stars, platforms);
+    game.physics.arcade.collide(star, platforms);
     //game.physics.arcade.overlap(player, stars, collectStar, null, this);
-    //game.physics.arcade.overlap(enemyBullets, player, bulletHitPlayer, null, this);
+    //game.physics.p2.overlap(enemyBullets, player, bulletHitPlayer, null, this);
+    //player.body.onBeginContact.add(bulletHitPlayer, this);
+
+    if (Phaser.Rectangle.intersects(player.getBounds(), star.getBounds()))
+    {
+        collectStar(player, star);
+    }
+
+    if (Phaser.Rectangle.intersects(player.getBounds(), bullet.getBounds()))
+    {
+        bulletHitPlayer(bullet);
+    }
 
 }
 
-function collectStar (player, star) {
+function collectStar (star) {
     
-    star.kill();
+    if (star.alive)
+    {
+        //star.kill();   
+    }
+
     score += 10;
     scoreText.text = 'Score: ' + score;
+
+}
+
+function bulletHitPlayer (bullet) {
+
+    if (bullet.alive)
+    {
+        debugText.text = "bullet kill";
+        //bullet.kill();        <---------- LISA WHY?!
+    }
+
+    hitsTaken += 1;
+    hitText.text = 'Hits taken: ' + hitsTaken;
 
 }
 
@@ -245,7 +273,7 @@ Helicopter = function (cursors, game) {
     this.heli.anchor.setTo(0.5, 0.5);
 
     this.game.physics.p2.enable(this.heli, false);     // <--- physics
-    this.heli.body.kinematic;
+    this.heli.body.kinematic = false;
     this.heli.body.collideWorldBounds = true;
 
 }
@@ -308,7 +336,6 @@ Helicopter.prototype.update = function () {
     }
 
 }
-
 
 EnemyTank = function (index, game, player, bullets, isImmovable, innacuracy, fireRange, bulletSpeed, fireRate, AI_level) {
 
@@ -414,13 +441,7 @@ EnemyTank.prototype.update = function() {
      
 };
 
-function bulletHitPlayer (tank, bullet) {
 
-    bullet.kill();
-    hitsTaken += 1;
-    hitText.text = 'Hits taken: ' + hitsTaken;
-
-}
 
 
 ////////////////////////////////////// WHEN ADDING ABILITY FOR PLAYER TO SHOOT, BUT WE'LL HANDLE THIS LATER ON
