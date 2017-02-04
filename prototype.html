@@ -1,0 +1,520 @@
+<!doctype html> 
+<html lang="en">
+<head> 
+    <meta charset="UTF-8" />
+    <title>Phaser - making osom bitchass game</title>
+    <script type="text/javascript" src="js/phaser.min.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<script type="text/javascript">
+
+var game = new Phaser.Game(1024, 768, Phaser.AUTO, '', { preload: preload, create: create, update: update });
+
+function preload() {
+
+    /* +++++++++++++++++++++++ Level ++++++++++++++++++++++*/
+
+    game.load.image('sky', 'assets/sky.png');   // <- dis gn b a background panorama
+    game.load.image('ground', 'assets/platform.png');   // <- sandbox ground, like in freakin terraria
+    game.load.image('birch', 'assets/birch.png');
+
+    /* +++++++++++++++++++++++ Player ++++++++++++++++++++++*/
+
+    game.load.image('helicopter', 'assets/helicopter.png');   // player
+    //game.load.atlas('helicopter', 'assets/helicopter.png', 'assets/helicoter.json')
+
+    //game.load.atlas('fuelMeter', 'assets/fuelMeter.png', 'assets/fuelMeter.json')
+    //game.load.atlas('speedMeter', 'assets/speedMeter.png', 'assets/speedMeter.json')
+    //game.load.atlas('dmgMeter', 'assets/dmgMeter.png', 'assets/dmgMeter.json')
+
+    /* +++++++++++++++++++++++ Enemies ++++++++++++++++++++++*/
+
+    game.load.atlas('truck', 'assets/truck.png', 'assets/truck.json'); //enemy truck
+    game.load.image('bullet', 'assets/star.png');      // bullets, also spritesheet with diff kinds
+
+    /* +++++++++++++++++++++++ Bonus ++++++++++++++++++++++*/    
+    
+    game.load.image('star', 'assets/star.png');         // <- who cares about the stars
+
+}
+
+var background;          // group
+var platforms;           // group
+var stars;               // 
+
+var player;              // instance
+var player_1;            // player
+
+var cursors;             // freakin cursors
+
+var enemies;             // group
+var enemiesTotal = 0;    // variable
+var enemiesAlive = 0;    // variable
+
+var bullets;             // group
+var fireRate = 100;      // variable
+var nextFire = 0;        // variable
+
+var score = 0;           // variable
+var scoreText;           // text
+var speed = 0;           // variable
+var speedText;           // text
+var hitsTaken = 0;       // variable
+var hitText;             // text
+
+
+
+function create() {
+
+    /* +++++++++++++++++++++++ Game params ++++++++++++++++++++++*/
+
+    game.physics.startSystem(Phaser.Physics.ARCADE);
+    game.physics.startSystem(Phaser.Physics.P2JS);
+    game.physics.p2.gravity.y = 120;
+    game.physics.p2.defaultRestitution = 0.8;
+    game.physics.p2.setImpactEvents(true);
+
+
+    game.world.setBounds(0, 0, 1024*10, 768);
+    cursors = game.input.keyboard.createCursorKeys();
+
+    // +++++++++++++++++++++++ BACKGROUND ++++++++++++++++++++++
+
+    // Create background
+    var sky = game.add.tileSprite(0, 0, 1024, 768, 'sky')
+    //sky.scale.setTo(2, 2);
+    //game.add.sprite(0, 0, 'sky');
+
+    // +++++++++++++++++++++++ POINTS COUNT ++++++++++++++++++++++
+
+    scoreText = game.add.text(16, 16, 'Score: 0', { fontSize: '32px', fill: '#000' });
+    speedText = game.add.text(16, 52, 'Speed: 0', { fontSize: '32px', fill: '#000' });
+    hitText = game.add.text(16, 88, 'Hits taken: 0', { fontSize: '32px', fill: '#000' });
+    debugText = game.add.text(500, 16, 'Actual debugging output', { fontSize: '32px', fill: '#000' });
+
+    // ++++++++++++++++++++++++ GROUND +++++++++++++++++++++++
+
+    // Platforms group
+    platforms = game.add.group();
+    platforms.enableBody = true;
+    //platforms.physicsBodyType = Phaser.physics.P2JS;
+
+    // Create ground
+    //var ground = game.add.tileSprite(0, game.world.height - 64, 800, 600, 'earth');
+    var ground = platforms.create(0, game.world.height - 64, 'ground');
+    ground.scale.setTo(50, 2);
+    ground.body.immovable = true;
+
+    // ++++++++++++++++++++++++ PLAYER +++++++++++++++++++++++
+
+    player_1 = new Helicopter(cursors, game);   // Create an object we can steer
+    player = player_1.heli;                     // Create the player instance for other functions argument
+
+    // ++++++++++++++++++++++++ ENEMIES +++++++++++++++++++++++
+    
+    enemies = [];
+    enemiesTotal = 20;
+    enemiesAlive = 20;
+
+    //  The enemies bullet group
+    enemyBullets = game.add.group();
+    enemyBullets.enableBody = true;
+    enemyBullets.physicsBodyType = Phaser.Physics.ARCADE;
+    enemyBullets.createMultiple(100, 'bullet');
+    
+    enemyBullets.setAll('anchor.x', 0.5);
+    enemyBullets.setAll('anchor.y', 0.5);
+    enemyBullets.setAll('outOfBoundsKill', true);
+    enemyBullets.setAll('checkWorldBounds', true);
+    
+    var is_immovable = true;
+    var innacuracy = 199;
+    var fireRange = 1000; // ~1000
+    var bulletSpeed = 800;  // 500 - 1000
+    var fireRate = 1000; // The more, the slower ~1000 normal
+    var AI_level = 1;
+
+
+    for (var i = 0; i < enemiesTotal; i++)
+    {
+        enemies.push(new EnemyTank(i, game, player, enemyBullets, is_immovable, innacuracy, fireRange, bulletSpeed, fireRate, AI_level));
+    }
+
+    // ++++++++++++++++++++++++ SPRITES +++++++++++++++++++++++
+
+    // Create birches to crash
+    var birch_array = [
+        [11000, 254, 0.5, 0.5],
+        [21200, 254, 0.5, 0.5],
+        [31300, 254, 0.5, 0.5],
+        [41500, 254, 0.5, 0.5],
+        [51650, 254, 0.5, 0.5],
+        [61800, 554, 0.5, 0.5],
+    ]
+
+    var num_birch = birch_array.length;
+
+    for(var i = 0; i < num_birch; i++)
+    {
+        ledge = platforms.create(birch_array[i][0], birch_array[i][1], 'birch');
+        ledge.scale.setTo(birch_array[i][2], birch_array[i][3]);
+        ledge.body.immovable = true;
+    }
+
+    // Stars group
+    stars = game.add.group();
+    stars.enableBody = true;
+
+    //  Here we'll create 12 of them evenly spaced apart
+    for (var i = 0; i < 12; i++)
+    {
+        var star = stars.create(i * 70, 0, 'star');
+        star.body.gravity.y = 1000;
+        star.body.bounce.y = 0.7 + Math.random() * 0.2;
+    }
+
+
+    // ++++++++++++++++++++++++ CAMERA SETTINGS +++++++++++++++++++++++
+
+    game.camera.follow(player, Phaser.Camera.FOLLOW_LOCKON, 0.1);
+    sky.fixedToCamera = true;
+    scoreText.fixedToCamera = true;
+    speedText.fixedToCamera = true;
+    hitText.fixedToCamera = true;
+
+    prevCamX = game.camera.x;
+
+
+}
+
+function update() {
+
+    collideRules(player, platforms, stars, enemyBullets);
+    player_1.update();
+
+    
+    enemiesAlive = 0;
+    
+    for (var i = 0; i < enemies.length; i++)
+    {
+        if (enemies[i].alive)
+        {
+            enemiesAlive++;
+            //game.physics.p2.collide(player, enemies[i].tank);
+            game.physics.arcade.collide(platforms, enemies[i].tank);
+
+            //game.physics.arcade.overlap(bullets, enemies[i].tank, bulletHitEnemy, null, this);
+            enemies[i].update();
+        }
+    }
+    
+    prevCamX = game.camera.x;
+
+}
+
+function collideRules (player, platforms, star, bullet) {
+
+    //game.physics.arcade.collide(player, platforms);
+    game.physics.arcade.collide(star, platforms);
+    //game.physics.arcade.overlap(player, stars, collectStar, null, this);
+    //game.physics.p2.overlap(enemyBullets, player, bulletHitPlayer, null, this);
+    //player.body.onBeginContact.add(bulletHitPlayer, this);
+
+    if (Phaser.Rectangle.intersects(player.getBounds(), star.getBounds()))
+    {
+        collectStar(player, star);
+    }
+
+    if (Phaser.Rectangle.intersects(player.getBounds(), bullet.getBounds()))
+    {
+        bulletHitPlayer(bullet);
+    }
+
+}
+
+function collectStar (player, star) {
+    
+    if (star.alive)
+    {
+        //star.kill();   
+    }
+
+    score += 10;
+    scoreText.text = 'Score: ' + score;
+
+}
+
+function bulletHitPlayer (bullet) {
+
+    if (bullet.alive)
+    {
+        debugText.text = "bullet kill";
+        //bullet.kill();        //<---------- LISA WHY?!
+    }
+
+    hitsTaken += 1;
+    hitText.text = 'Hits taken: ' + hitsTaken;
+
+}
+
+Helicopter = function (cursors, game) {
+
+    this.cursors = cursors;
+    this.game = game;
+    this.heli = game.add.sprite(100, game.world.height - 200, 'helicopter');
+
+    this.heli.scale.setTo(0.05, 0.05);
+    this.heli.anchor.setTo(0.5, 0.5);
+
+    this.game.physics.p2.enable(this.heli, false);     // <--- physics
+    this.heli.body.kinematic = false;
+    this.heli.body.collideWorldBounds = true;
+
+}
+
+Helicopter.prototype.update = function () {
+
+    // ADVANCED PHISICS ENGINE XD
+    var friction = this.heli.body.velocity.x / 40000;
+    var minSpeed = -300;
+    var maxSpeed = 600;
+    var forwardEnginePower = 250;
+    var backwardEnginePower = 100;
+    var rotateSpeed = 20;
+
+    this.speed = this.heli.body.velocity.x;
+    speedText.text = 'Speed: ' + this.speed.toFixed(2);
+    this.heli.angle = this.heli.body.velocity.x / 15;
+
+     //+++++++++++++ PLAYER IDLE +++++++++++++
+
+    /*
+    if (this.heli.body.velocity.x < 0)
+    {
+        this.heli.body.velocity.x += -friction;
+    }
+    else if (this.heli.body.velocity.x)
+    {
+        this.heli.body.velocity.x -= friction;
+    }
+    */
+
+    //+++++++++++++ LEFT AND RIGHT MOVEMENT OF PLAYER +++++++++++++
+
+    if (this.cursors.left.isDown)
+    {
+        this.heli.body.rotateLeft(rotateSpeed);
+
+    }
+    else if (this.cursors.right.isDown)
+    {
+        this.heli.body.rotateRight(rotateSpeed);
+    }
+    
+    else
+    {
+        this.heli.body.setZeroRotation();
+    }
+    
+
+    //+++++++++++++ UP AND DOWN MOVEMENT OF PLAYER +++++++++++++
+
+    if (this.cursors.up.isDown) //&& heli.body.tou ching.down)
+    {
+        this.heli.body.thrust(forwardEnginePower);
+    }
+
+    else if (this.cursors.down.isDown) //&& heli.body.touching.down)
+    {
+        this.heli.body.reverse(backwardEnginePower);
+    }
+
+}
+
+EnemyTank = function (index, game, player, bullets, isImmovable, innacuracy, fireRange, bulletSpeed, fireRate, AI_level) {
+
+    var x = game.world.randomX;
+    var y = 500;
+
+
+    this.game = game;
+    //this.health = 3;
+    this.player = player;
+    this.bullets = bullets;
+
+    this.isImmovable = isImmovable;
+    this.innacuracy = innacuracy;
+    this.fireRange = fireRange;
+    this.bulletSpeed = bulletSpeed;
+    this.fireRate = fireRate;
+    this.AI_level = AI_level;
+
+    this.nextFire = 0;
+    this.alive = true;
+
+    // this.shadow = game.add.sprite(x, y, 'enemy', 'shadow');
+    this.tank = game.add.sprite(x, y, 'truck', 'vehicle');
+    this.turret = game.add.sprite(x, y, 'truck', 'turret');
+
+    // this.shadow.anchor.set(0.5);
+    this.tank.anchor.set(0.5);
+    this.turret.anchor.set(0.3, 0.5);
+
+    this.tank.name = index.toString();
+    this.game.physics.arcade.enable(this.tank);
+    this.tank.body.immovable = false;
+    this.tank.body.collideWorldBounds = true;
+    this.tank.body.bounce.setTo(0, 0);
+    this.tank.body.gravity.y = 80;
+
+    //this.tank.angle = game.rnd.angle();
+
+    if (this.isImmovable == false) {
+
+        game.physics.arcade.velocityFromRotation(this.tank.rotation, 100, this.tank.body.velocity);
+    } 
+
+};
+
+/*
+EnemyTank.prototype.damage = function() {
+
+    this.health -= 1;
+
+    if (this.health <= 0)
+    {
+        this.alive = false;
+
+        this.shadow.kill();
+        this.tank.kill();
+        this.turret.kill();
+
+        return true;
+    }
+
+    return false;
+
+};
+*/
+
+EnemyTank.prototype.update = function() {
+    
+
+    //this.shadow.x = this.tank.x;
+    //this.shadow.y = this.tank.y;
+    //this.shadow.rotation = this.tank.rotation;
+
+    
+    this.turret.x = this.tank.x;
+    this.turret.y = this.tank.y;
+    this.turret.rotation = this.game.physics.arcade.angleBetween(this.tank, this.player);
+    
+    //this.playerMirror = this.player;
+    //this.playerMirror.x = this.innacuracy;
+
+    
+    if (this.game.physics.arcade.distanceBetween(this.tank, this.player) < this.fireRange)
+    {        
+        
+        if (this.game.time.now > this.nextFire && this.bullets.countDead() > 0)
+        {
+            
+            this.nextFire = this.game.time.now + this.fireRate;
+
+            var bullet = this.bullets.getFirstDead();
+
+            bullet.reset(this.turret.x, this.turret.y);
+
+            bullet.rotation = this.game.physics.arcade.moveToObject(bullet, this.player, this.bulletSpeed);
+            
+        }
+        
+        return 0;
+        
+    }
+     
+};
+
+
+
+
+////////////////////////////////////// WHEN ADDING ABILITY FOR PLAYER TO SHOOT, BUT WE'LL HANDLE THIS LATER ON
+
+/*
+function bulletHitEnemy (tank, bullet) {
+
+    bullet.kill();
+
+    var destroyed = enemies[tank.name].damage();
+
+    if (destroyed)
+    {
+        var explosionAnimation = explosions.getFirstExists(false);
+        explosionAnimation.reset(tank.x, tank.y);
+        explosionAnimation.play('kaboom', 30, false, true);
+    }
+
+}
+*/
+
+/*
+function fire () {
+
+    if (game.time.now > nextFire && bullets.countDead() > 0)
+    {
+        nextFire = game.time.now + fireRate;
+
+        var bullet = bullets.getFirstExists(false);
+
+        bullet.reset(turret.x, turret.y);
+
+        bullet.rotation = game.physics.arcade.moveToPointer(bullet, 1000, game.input.activePointer, 500);
+    }
+
+}
+
+
+function render () {
+
+    // game.debug.text('Active Bullets: ' + bullets.countLiving() + ' / ' + bullets.length, 32, 32);
+    game.debug.text('Enemies: ' + enemiesAlive + ' / ' + enemiesTotal, 32, 32);
+
+}
+
+*/
+
+/////////////////////////////////////////
+
+
+
+
+// ToDo
+
+// High priority:
+// Clouds <- Pusiek*
+// Sandbox ground <- Pusiek*
+
+// Low priority:
+// inteligent AI , different enemies
+// Game models <- Pusiek
+// multiple heli class
+
+// Game idea:
+// Headquaters + graphics
+// Fuel
+// Speed count
+// Rewards
+
+// playable xD
+
+</script>
+
+</body>
+</html>
+

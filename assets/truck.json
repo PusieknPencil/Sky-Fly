@@ -23,6 +23,14 @@
 	"trimmed": true,
 	"spriteSourceSize": {"x":3,"y":5,"w":54,"h":52},
 	"sourceSize": {"w":64,"h":64}
+},
+{
+	"filename": "turret",
+	"frame": {"x":0,"y":80,"w":48,"h":28},
+	"rotated": false,
+	"trimmed": true,
+	"spriteSourceSize": {"x":1,"y":2,"w":48,"h":28},
+	"sourceSize": {"w":50,"h":32}
 }],
 "meta": {
 	"app": "http://www.codeandweb.com/texturepacker ",
